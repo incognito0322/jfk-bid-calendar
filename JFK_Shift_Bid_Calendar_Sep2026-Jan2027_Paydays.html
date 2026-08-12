@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JFK Sep 2026 – Jan 2027 Bid Calendar</title>
+
+  <style>
+    body {
+      font-family: sans-serif;
+      background-color: white;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 10px;
+    }
+
+    h2 {
+      text-align: center;
+      margin: 20px 0 10px 0;
+    }
+
+    .calendar {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 4px;
+      max-width: 700px;
+      margin: auto;
+      margin-bottom: 40px;
+    }
+
+    .day {
+      border: 1px solid #ddd;
+      padding: 10px;
+      text-align: center;
+      background-color: white;
+      border-radius: 6px;
+      min-height: 20px;
+    }
+
+    .header {
+      font-weight: bold;
+      background-color: #f3f3f3;
+    }
+
+    .off {
+      background-color: #ffe4e1;
+    }
+
+    .start {
+      font-weight: bold;
+      border: 2px solid black;
+    }
+
+    .holiday {
+      background-color: #90ee90;
+      font-weight: bold;
+    }
+
+    .payday {
+      background-color: #ffd700;
+      font-weight: bold;
+    }
+
+    .today {
+      background-color: #add8e6 !important;
+      border: 2px solid #000080;
+    }
+
+    .out-of-range {
+      background-color: #e0e0e0 !important;
+      color: #888;
+      border: 1px solid #ccc;
+    }
+
+    .controls {
+      text-align: center;
+      margin: 15px;
+    }
+
+    .legend {
+      text-align: center;
+      margin: 15px;
+    }
+
+    .legend span {
+      display: inline-block;
+      padding: 4px 10px;
+      margin: 5px;
+      border-radius: 4px;
+      font-size: 0.9em;
+    }
+  </style>
+</head>
+
+<body>
+
+  <h1>JFK Sep 2026 – Jan 2027 Bid Calendar</h1>
+
+  <div class="controls">
+    <label for="rotationSelect">Select Rotation:</label>
+    <select id="rotationSelect">
+      <option value="MT">MT - Monday Tuesday</option>
+      <option value="TW">TW - Tuesday Wednesday</option>
+      <option value="WQ">WQ - Wednesday Thursday</option>
+      <option value="QF">QF - Thursday Friday</option>
+      <option value="FJ">FJ - Friday Saturday</option>
+      <option value="JS">JS - Saturday Sunday</option>
+      <option value="SM">SM - Sunday Monday</option>
+    </select>
+  </div>
+
+  <div class="legend">
+    <span style="background:#ffe4e1;">Off</span>
+    <span style="background:#90ee90;">Holiday</span>
+    <span style="background:#ffd700;">Payday</span>
+    <span style="border:2px solid black;">Rotation Start</span>
+    <span style="background:#add8e6; border:2px solid #000080;">Today</span>
+    <span style="background:#e0e0e0;">Outside Bid Period</span>
+  </div>
+
+  <div id="calendar"></div>
+
+  <script>
+    // Rotation starts every 28 days.
+    const rotationStartDates = [
+      new Date(2026, 8, 14),  // September 14
+      new Date(2026, 9, 12),  // October 12
+      new Date(2026, 10, 9),  // November 9
+      new Date(2026, 11, 7),  // December 7
+      new Date(2027, 0, 4),   // January 4
+      new Date(2027, 1, 1)    // February 1 - cycle buffer
+    ];
+
+    // Holidays.
+    const holidayDates = [
+      new Date(2026, 10, 11), // Veterans Day
+      new Date(2026, 10, 26), // Thanksgiving Day
+      new Date(2026, 10, 27), // Day after Thanksgiving
+      new Date(2026, 11, 25), // Christmas Day
+      new Date(2027, 0, 1)    // New Year's Day
+    ];
+
+    // Payday every 2 weeks on Friday, starting September 18, 2026.
+    const paydayDates = [
+      new Date(2026, 8, 18),  // September 18
+      new Date(2026, 9, 2),   // October 2
+      new Date(2026, 9, 16),  // October 16
+      new Date(2026, 9, 30),  // October 30
+      new Date(2026, 10, 13), // November 13
+      new Date(2026, 10, 27), // November 27
+      new Date(2026, 11, 11), // December 11
+      new Date(2026, 11, 25), // December 25
+      new Date(2027, 0, 8)    // January 8
+    ];
+
+    const bidStartDate = new Date(2026, 8, 14);
+    const bidEndDate = new Date(2027, 0, 10);
+
+    function sameDate(a, b) {
+      return a.getFullYear() === b.getFullYear() &&
+             a.getMonth() === b.getMonth() &&
+             a.getDate() === b.getDate();
+    }
+
+    function isHoliday(date) {
+      return holidayDates.some(holiday => sameDate(holiday, date));
+    }
+
+    function isPayday(date) {
+      return paydayDates.some(payday => sameDate(payday, date));
+    }
+
+    const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+    const shiftPatternsByRotation = {
+      MT: [[0,1],[2,3],[4,5],[6,0],[1,2]],
+      TW: [[1,2],[3,4],[5,6],[0,1],[2,3]],
+      WQ: [[2,3],[4,5],[6,0],[1,2],[3,4]],
+      QF: [[3,4],[5,6],[0,1],[2,3],[4,5]],
+      FJ: [[4,5],[6,0],[1,2],[3,4],[5,6]],
+      JS: [[5,6],[0,1],[2,3],[4,5],[6,0]],
+      SM: [[6,0],[1,2],[3,4],[5,6],[0,1]]
+    };
+
+    function getCurrentPattern(date, rotation) {
+      const patterns = shiftPatternsByRotation[rotation];
+
+      for (let i = rotationStartDates.length - 1; i >= 0; i--) {
+        if (date >= rotationStartDates[i]) {
+          return patterns[i % patterns.length];
+        }
+      }
+
+      return null;
+    }
+
+    function isRotationStart(date) {
+      return rotationStartDates.some(startDate => sameDate(startDate, date));
+    }
+
+    function isOutsideBidPeriod(date) {
+      return date < bidStartDate || date > bidEndDate;
+    }
+
+    function renderMonth(year, month, rotation) {
+      const container = document.createElement('div');
+
+      const title = document.createElement('h2');
+      title.textContent = new Date(year, month).toLocaleString('default', {
+        month: 'long',
+        year: 'numeric'
+      });
+      container.appendChild(title);
+
+      const calendar = document.createElement('div');
+      calendar.className = 'calendar';
+
+      dayNames.forEach(day => {
+        const el = document.createElement('div');
+        el.className = 'day header';
+        el.textContent = day;
+        calendar.appendChild(el);
+      });
+
+      const firstDay = new Date(year, month, 1);
+      const startWeekDay = (firstDay.getDay() + 6) % 7;
+
+      for (let i = 0; i < startWeekDay; i++) {
+        const empty = document.createElement('div');
+        empty.className = 'day';
+        calendar.appendChild(empty);
+      }
+
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+      const today = new Date();
+
+      for (let day = 1; day <= daysInMonth; day++) {
+        const date = new Date(year, month, day);
+        const dayOfWeek = (date.getDay() + 6) % 7;
+        const pattern = getCurrentPattern(date, rotation);
+
+        const dayEl = document.createElement('div');
+        dayEl.className = 'day';
+
+        if (isOutsideBidPeriod(date)) {
+          dayEl.classList.add('out-of-range');
+        } else {
+          if (pattern && pattern.includes(dayOfWeek)) {
+            dayEl.classList.add('off');
+          }
+
+          if (isRotationStart(date)) {
+            dayEl.classList.add('start');
+          }
+
+          if (isHoliday(date)) {
+            dayEl.classList.add('holiday');
+          }
+
+          if (isPayday(date)) {
+            dayEl.classList.add('payday');
+          }
+        }
+
+        if (sameDate(date, today)) {
+          dayEl.classList.add('today');
+        }
+
+        dayEl.textContent = day;
+
+        if (isPayday(date) && !isOutsideBidPeriod(date)) {
+          dayEl.title = 'Payday';
+        }
+
+        calendar.appendChild(dayEl);
+      }
+
+      container.appendChild(calendar);
+      return container;
+    }
+
+    function renderCalendar(rotation) {
+      const calendarDiv = document.getElementById('calendar');
+      calendarDiv.innerHTML = '';
+
+      // September 2026 through January 2027.
+      for (let i = 0; i < 5; i++) {
+        const monthDate = new Date(2026, 8 + i);
+
+        calendarDiv.appendChild(
+          renderMonth(
+            monthDate.getFullYear(),
+            monthDate.getMonth(),
+            rotation
+          )
+        );
+      }
+    }
+
+    const rotationSelect = document.getElementById('rotationSelect');
+
+    rotationSelect.addEventListener('change', () => {
+      renderCalendar(rotationSelect.value);
+    });
+
+    renderCalendar(rotationSelect.value);
+  </script>
+
+</body>
+</html>
